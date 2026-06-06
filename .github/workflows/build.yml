@@ -31,20 +31,13 @@ jobs:
           $dst = "FreePDFImport/bin"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           
-          $needed = @(
-            "pdftocairo.exe", "pdfinfo.exe",
-            "cairo.dll", "charset.dll", "deflate.dll", "expat.dll",
-            "fontconfig-1.dll", "freetype.dll", "iconv.dll", "jpeg8.dll",
-            "lcms2.dll", "libcrypto-3-x64.dll", "libcurl.dll", "libexpat.dll",
-            "liblzma.dll", "libpng16.dll", "libssh2.dll", "libtiff.dll",
-            "libzstd.dll", "openjp2.dll", "pixman-1-0.dll",
-            "poppler-cpp.dll", "poppler.dll", "tiff.dll", "zlib.dll", "zstd.dll"
-          )
-          
+          $needed = @("pdftocairo.exe", "pdfinfo.exe")
           foreach ($f in $needed) {
             Copy-Item "$src/$f" "$dst/$f" -Force
-            Write-Host "  Copied: $f"
           }
+          
+          # Copy all DLLs to ensure we don't miss dependencies (like Lerc.dll)
+          Copy-Item "$src/*.dll" "$dst/" -Force
           
           Write-Host "Copied $($needed.Count) Poppler binaries"
 
