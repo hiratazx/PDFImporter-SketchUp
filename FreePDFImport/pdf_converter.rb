@@ -3,6 +3,7 @@
 # License: GPL-3.0
 
 require_relative 'utils'
+require 'open3'
 
 module FreePDFImport
   module PDFConverter
@@ -17,7 +18,7 @@ module FreePDFImport
         raise "PDF file not found: #{pdf_path}"
       end
 
-      cmd = "#{Utils.shell_quote(Utils::PDFINFO)} #{Utils.shell_quote(pdf_path)}"
+      cmd = [Utils::PDFINFO, pdf_path]
       output = run_command(cmd)
 
       info = {}
@@ -52,7 +53,7 @@ module FreePDFImport
     def self.get_page_dimensions(pdf_path, total_pages)
       pages = []
       (1..total_pages).each do |page_num|
-        cmd = "#{Utils.shell_quote(Utils::PDFINFO)} -f #{page_num} -l #{page_num} #{Utils.shell_quote(pdf_path)}"
+        cmd = [Utils::PDFINFO, '-f', page_num.to_s, '-l', page_num.to_s, pdf_path]
         output = run_command(cmd)
 
         width = nil
@@ -87,9 +88,14 @@ module FreePDFImport
 
       output_path ||= Utils.temp_svg_path("page#{page_num}")
 
-      cmd = "#{Utils.shell_quote(Utils::PDFTOCAIRO)} -svg " \
-            "-f #{page_num} -l #{page_num} " \
-            "#{Utils.shell_quote(pdf_path)} #{Utils.shell_quote(output_path)}"
+      cmd = [
+        Utils::PDFTOCAIRO,
+        '-svg',
+        '-f', page_num.to_s,
+        '-l', page_num.to_s,
+        pdf_path,
+        output_path
+      ]
 
       Utils.log("Converting page #{page_num} to SVG...")
       run_command(cmd)
@@ -104,25 +110,21 @@ module FreePDFImport
 
     private
 
-    # Run a shell command and return stdout
+    # Run a command using Open3 and return stdout/stderr
     # Raises on non-zero exit code
-    def self.run_command(cmd)
-      Utils.log("Running: #{cmd}")
+    def self.run_command(cmd_array)
+      Utils.log("Running: #{cmd_array.join(' ')}")
 
-      # Use backtick execution with stderr capture
-      # On Windows, we need to handle the command carefully
       result = nil
       begin
-        # Redirect stderr to stdout so we can capture errors
-        full_cmd = "#{cmd} 2>&1"
-        result = `#{full_cmd}`
-        exit_code = $?.exitstatus
+        result, status = Open3.capture2e(*cmd_array)
+        exit_code = status.exitstatus
 
         if exit_code != 0
-          Utils.log("Command failed (exit #{exit_code}): #{result}")
-          raise "Poppler command failed (exit #{exit_code}): #{result.strip}"
+          Utils.log("Command failed (exit #{exit_code.inspect}): #{result}")
+          raise "Poppler command failed (exit #{exit_code.inspect}): #{result.strip}"
         end
-      rescue Errno::ENOENT => e
+      rescue StandardError => e
         raise "Could not execute Poppler command: #{e.message}"
       end
 
