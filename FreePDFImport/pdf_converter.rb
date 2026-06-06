@@ -126,7 +126,7 @@ module FreePDFImport
 
         # Execute the .bat file. We quote the path to the bat file just in case it has spaces.
         # We append 2>&1 here to capture stderr
-        result = `""#{bat_path}"" 2>&1`
+        result = `\"#{bat_path}\" 2>&1`
       rescue StandardError => e
         raise "Could not execute Poppler command: #{e.message}"
       ensure
