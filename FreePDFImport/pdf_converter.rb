@@ -109,19 +109,29 @@ module FreePDFImport
     private
 
     # Run a shell command and return stdout using backticks
-    # We wrap the entire command in quotes to prevent cmd.exe from stripping quotes
-    # and we don't rely on $? because it's unreliable in SketchUp Ruby on Windows
+    # We write the command to a temporary .bat file to bypass Windows/Ruby shell quoting bugs,
+    # as SketchUp's Ruby interpreter struggles with nested quotes in backticks.
     def self.run_command(cmd)
       Utils.log("Running: #{cmd}")
 
       result = nil
+      bat_path = File.join(Utils::TMP_DIR, "run_poppler.bat")
       begin
-        # Wrap the whole command in quotes so cmd /c doesn't strip the inner quotes
-        # Append 2>&1 to capture stderr into stdout
-        full_cmd = "\"#{cmd} 2>&1\""
-        result = `#{full_cmd}`
+        # Ensure tmp dir exists
+        Dir.mkdir(Utils::TMP_DIR) unless Dir.exist?(Utils::TMP_DIR)
+
+        # Write the exact command to a .bat file
+        # This completely avoids cmd.exe quote stripping and Ruby's Errno::ENOENT issues
+        File.write(bat_path, "@echo off\r\n#{cmd}\r\n")
+
+        # Execute the .bat file. We quote the path to the bat file just in case it has spaces.
+        # We append 2>&1 here to capture stderr
+        result = `""#{bat_path}"" 2>&1`
       rescue StandardError => e
         raise "Could not execute Poppler command: #{e.message}"
+      ensure
+        # Cleanup
+        File.delete(bat_path) if File.exist?(bat_path)
       end
 
       result
