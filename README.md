@@ -25,9 +25,17 @@ PDF File → [Poppler pdftocairo] → SVG → [REXML Parser] → [Path Parser] �
 
 ## Installation
 
+### Install via Extension Manager (Recommended)
+1. Download the latest `.rbz` file from [Releases](https://github.com/hiratazx/PDFImporter-SketchUp/releases)
+2. Open SketchUp
+3. Go to **Window → Extension Manager** (or **Window → Preferences → Extensions** in older versions)
+4. Click **Install Extension**
+5. Select the downloaded `.rbz` file
+6. Restart SketchUp
+
 ### Manual Installation
-1. Download the latest release from [Releases](https://github.com/hiratazx/PDFImporter-SketchUp/releases)
-2. Extract the `.zip` file
+1. Download the latest `.rbz` file from [Releases](https://github.com/hiratazx/PDFImporter-SketchUp/releases)
+2. Rename `.rbz` to `.zip` and extract it
 3. Copy `FreePDFImport.rb` and the `FreePDFImport/` folder into your SketchUp Plugins directory:
    - **Windows**: `C:\Users\<username>\AppData\Roaming\SketchUp\SketchUp <version>\SketchUp\Plugins`
 4. Restart SketchUp

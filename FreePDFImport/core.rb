@@ -144,7 +144,7 @@ module FreePDFImport
         "Uses Poppler (GPL) for PDF processing.\n" \
         "Author: hiratazx\n" \
         "License: GPL-3.0\n\n" \
-        "https://github.com/hiratazx/FreePDFImport",
+        "https://github.com/hiratazx/PDFImporter-SketchUp",
         MB_OK
       )
     end
