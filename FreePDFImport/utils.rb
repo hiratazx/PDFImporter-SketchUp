@@ -66,9 +66,11 @@ module FreePDFImport
       pt * PT_TO_INCH
     end
 
-    # Quote a file path for shell command usage
+    # Quote a file path for shell command usage and fix slashes for Windows cmd
     def self.shell_quote(path)
-      "\"#{path}\""
+      # cmd.exe requires backslashes when paths are enclosed in quotes
+      windows_path = path.tr('/', '\\')
+      "\"#{windows_path}\""
     end
 
     # Get scale factor based on user's chosen unit

@@ -115,7 +115,7 @@ module FreePDFImport
       Utils.log("Running: #{cmd}")
 
       result = nil
-      bat_path = File.join(Utils::TMP_DIR, "run_poppler.bat")
+      bat_path = File.join(Utils::TMP_DIR, "run_poppler.bat").tr('/', '\\')
       begin
         # Ensure tmp dir exists
         Dir.mkdir(Utils::TMP_DIR) unless Dir.exist?(Utils::TMP_DIR)
