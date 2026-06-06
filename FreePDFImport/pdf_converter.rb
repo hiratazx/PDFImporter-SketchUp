@@ -3,7 +3,6 @@
 # License: GPL-3.0
 
 require_relative 'utils'
-require 'open3'
 
 module FreePDFImport
   module PDFConverter
@@ -18,8 +17,12 @@ module FreePDFImport
         raise "PDF file not found: #{pdf_path}"
       end
 
-      cmd = [Utils::PDFINFO, pdf_path]
+      cmd = "#{Utils.shell_quote(Utils::PDFINFO)} #{Utils.shell_quote(pdf_path)}"
       output = run_command(cmd)
+
+      if output.nil? || output.strip.empty? || output =~ /^Error:/i
+        raise "pdfinfo failed or returned error: #{output}"
+      end
 
       info = {}
       output.each_line do |line|
@@ -53,7 +56,7 @@ module FreePDFImport
     def self.get_page_dimensions(pdf_path, total_pages)
       pages = []
       (1..total_pages).each do |page_num|
-        cmd = [Utils::PDFINFO, '-f', page_num.to_s, '-l', page_num.to_s, pdf_path]
+        cmd = "#{Utils.shell_quote(Utils::PDFINFO)} -f #{page_num} -l #{page_num} #{Utils.shell_quote(pdf_path)}"
         output = run_command(cmd)
 
         width = nil
@@ -88,20 +91,15 @@ module FreePDFImport
 
       output_path ||= Utils.temp_svg_path("page#{page_num}")
 
-      cmd = [
-        Utils::PDFTOCAIRO,
-        '-svg',
-        '-f', page_num.to_s,
-        '-l', page_num.to_s,
-        pdf_path,
-        output_path
-      ]
+      cmd = "#{Utils.shell_quote(Utils::PDFTOCAIRO)} -svg " \
+            "-f #{page_num} -l #{page_num} " \
+            "#{Utils.shell_quote(pdf_path)} #{Utils.shell_quote(output_path)}"
 
       Utils.log("Converting page #{page_num} to SVG...")
-      run_command(cmd)
+      output = run_command(cmd)
 
-      unless File.exist?(output_path)
-        raise "SVG conversion failed — output file not created: #{output_path}"
+      unless File.exist?(output_path) && File.size(output_path) > 0
+        raise "SVG conversion failed — output file not created. Output: #{output}"
       end
 
       Utils.log("SVG created: #{output_path} (#{File.size(output_path)} bytes)")
@@ -110,20 +108,18 @@ module FreePDFImport
 
     private
 
-    # Run a command using Open3 and return stdout/stderr
-    # Raises on non-zero exit code
-    def self.run_command(cmd_array)
-      Utils.log("Running: #{cmd_array.join(' ')}")
+    # Run a shell command and return stdout using backticks
+    # We wrap the entire command in quotes to prevent cmd.exe from stripping quotes
+    # and we don't rely on $? because it's unreliable in SketchUp Ruby on Windows
+    def self.run_command(cmd)
+      Utils.log("Running: #{cmd}")
 
       result = nil
       begin
-        result, status = Open3.capture2e(*cmd_array)
-        exit_code = status.exitstatus
-
-        if exit_code != 0
-          Utils.log("Command failed (exit #{exit_code.inspect}): #{result}")
-          raise "Poppler command failed (exit #{exit_code.inspect}): #{result.strip}"
-        end
+        # Wrap the whole command in quotes so cmd /c doesn't strip the inner quotes
+        # Append 2>&1 to capture stderr into stdout
+        full_cmd = "\"#{cmd} 2>&1\""
+        result = `#{full_cmd}`
       rescue StandardError => e
         raise "Could not execute Poppler command: #{e.message}"
       end
