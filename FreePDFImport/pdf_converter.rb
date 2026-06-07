@@ -108,32 +108,54 @@ module FreePDFImport
 
     private
 
-    # Run a shell command and return stdout using backticks
+    # Run a shell command and return stdout using backticks.
     # We write the command to a temporary .bat file to bypass Windows/Ruby shell quoting bugs,
     # as SketchUp's Ruby interpreter struggles with nested quotes in backticks.
+    #
+    # CRITICAL: We prepend the bin directory to PATH inside the .bat file.
+    # Without this, pdfinfo.exe/pdftocairo.exe silently crash on startup because
+    # Windows cannot find their DLL dependencies (e.g. Lerc.dll, poppler.dll).
+    # The DLLs live next to the .exe in bin/, but when SketchUp's Ruby launches
+    # the process, the working directory is SketchUp's own install dir — not bin/.
+    # Windows' DLL search order checks CWD and PATH, but NOT the directory of the
+    # .exe being invoked, so we must explicitly add it.
     def self.run_command(cmd)
       Utils.log("Running: #{cmd}")
 
       result = nil
       bat_path = File.join(Utils::TMP_DIR, "run_poppler.bat").tr('/', '\\')
+      bin_dir = Utils::BIN_DIR.tr('/', '\\')
       begin
         # Ensure tmp dir exists
         Dir.mkdir(Utils::TMP_DIR) unless Dir.exist?(Utils::TMP_DIR)
 
-        # Write the exact command to a .bat file
-        # This completely avoids cmd.exe quote stripping and Ruby's Errno::ENOENT issues
-        File.write(bat_path, "@echo off\r\n#{cmd}\r\n")
+        # Build bat file contents:
+        # 1. @echo off — suppress command echo
+        # 2. set PATH=<bin_dir>;%PATH% — so DLLs next to pdfinfo.exe are found
+        # 3. The actual command
+        bat_content = "@echo off\r\n" \
+                      "set \"PATH=#{bin_dir};%PATH%\"\r\n" \
+                      "#{cmd}\r\n"
 
-        # Execute the .bat file. We quote the path to the bat file just in case it has spaces.
-        # We append 2>&1 here to capture stderr
-        result = `\"#{bat_path}\" 2>&1`
+        File.write(bat_path, bat_content)
+
+        Utils.log("Bat file: #{bat_path}")
+        Utils.log("Bat content: #{bat_content.inspect}")
+
+        # Execute the .bat file via cmd /c to ensure proper quote handling
+        result = `cmd /c "#{bat_path}" 2>&1`
       rescue StandardError => e
         raise "Could not execute Poppler command: #{e.message}"
       ensure
         # Cleanup
-        File.delete(bat_path) if File.exist?(bat_path)
+        begin
+          File.delete(bat_path) if File.exist?(bat_path)
+        rescue
+          # Ignore cleanup errors
+        end
       end
 
+      Utils.log("Command output (#{result.nil? ? 'nil' : result.length} chars): #{result.to_s[0..200]}")
       result
     end
   end
